@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>STEM Quest - Offline Prototype (STEM Quest)</title>
+  <style>
+    
+    * { box-sizing: border-box; margin:0; padding:0 }
+    body { font-family: Arial, sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:#222; min-height:100vh; padding-bottom:120px }
+    .app { max-width:1100px; margin:20px auto; background: #fff; border-radius:14px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,0.15) }
+    header { display:flex; align-items:center; gap:16px; padding:18px 22px; background: linear-gradient(90deg,#ff6b35,#f7931e); color:#fff }
+    .gov-logo { width:60px; height:60px; background:#fff;color:#ff6b35;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;border:3px solid #fff }
+    .title { flex:1 }
+    .title h1 { margin-bottom:6px; font-size:20px }
+    .title p { margin:0; font-size:13px; opacity:0.95 }
+    .status { display:flex; gap:10px; align-items:center; font-size:13px }
+    .offline-indicator { background:#4CAF50;padding:6px 10px;border-radius:14px; font-weight:600 }
+
+    .main { padding:22px }
+    .controls { display:flex; gap:12px; justify-content:space-between; margin-bottom:14px; align-items:center }
+    .left-controls { display:flex; gap:10px; align-items:center }
+    .btn { background:#ff6b35;color:#fff;padding:8px 12px;border-radius:8px;border:none; cursor:pointer; font-weight:600 }
+    .btn.secondary { background:#34495e }
+    .lang-toggle { background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;border:1px solid #ddd }
+    .stats { display:flex; gap:12px; margin-top:12px }
+    .stat-card { background:#f8f8ff;padding:12px;border-radius:10px;flex:1;text-align:center }
+    .stat-card .num { font-size:22px; font-weight:700; color:#ff6b35 }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; margin-top:18px }
+    .game-card { background:white;border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,0.08); cursor:pointer; position:relative; overflow:hidden }
+    .game-title { font-weight:700; font-size:16px; margin-bottom:8px }
+    .game-desc { color:#666; font-size:13px; margin-bottom:10px }
+    .progress-bar { height:8px; background:#eee;border-radius:8px; overflow:hidden }
+    .progress-fill { height:100%; background:linear-gradient(90deg,#4CAF50,#8BC34A); width:0% }
+    .badge { position:absolute; top:10px; right:10px; background:#FFD700; padding:6px;border-radius:10px; font-size:13px }
+
+    .leaderboard { margin-top:18px; padding:14px; background:#fafafa;border-radius:10px }
+    .leaderboard h3 { margin-bottom:10px }
+    .lb-item { display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid #eee }
+    .rank { font-weight:700; color:#ff6b35; width:28px }
+    .avatar { width:40px; height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700 }
+
+    footer { padding:12px 22px; background:#f0f4f8; display:flex; justify-content:space-between; align-items:center; gap:12px; position:relative; margin-top:10px }
+    .team { font-size:14px; color:#333 }
+    .credits { font-size:13px; color:#666 }
+
+    
+    .modal-backdrop { position:fixed; left:0; right:0; top:0; bottom:0; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index:2000 }
+    .modal { background:#fff; padding:18px; border-radius:12px; width:360px; box-shadow:0 8px 30px rgba(0,0,0,0.25) }
+    .modal h2 { margin-bottom:10px }
+    .input { width:100%; padding:8px 10px; margin-top:8px; border-radius:8px; border:1px solid #ddd }
+    .role-btns { display:flex; gap:8px; margin-top:10px }
+
+    .small { font-size:13px; color:#555 }
+    .hidden { display:none }
+
+   
+    @keyframes pop {
+      0% { transform: scale(0.8); opacity:0 }
+      50% { transform: scale(1.08); opacity:1 }
+      100% { transform: scale(1); opacity:1 }
+    }
+    .levelup { animation: pop 400ms ease both; background:linear-gradient(90deg,#ff6b35,#f7931e); color:#fff; padding:8px 12px; border-radius:10px; display:inline-block; margin-left:8px }
+
+   
+    @media (max-width:700px) {
+      .controls { flex-direction:column; align-items:stretch; gap:8px }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app" id="app">
+    <header>
+      <div class="gov-logo">GOVT<br/>OF<br/>ODISHA</div>
+      <div class="title">
+        <h1>STEM Quest</h1>
+        <p>Gamified Learning Platform — Offline-ready • Multilingual • Teacher Analytics</p>
+      </div>
+      <div class="status">
+        <div id="offlineIndicator" class="offline-indicator">OFFLINE READY</div>
+        <div id="connStatus">📶 Connected</div>
+      </div>
+    </header>
+
+    <div class="main">
+      <!-- controls -->
+      <div class="controls">
+        <div class="left-controls">
+          <button class="btn" id="openLoginBtn">Login (Student/Teacher)</button>
+          <button class="btn secondary" id="languageToggle">Language: English</button>
+          <button class="btn secondary" id="speakBtn">🔊 Speak Sample</button>
+        </div>
+        <div>
+          <span class="small">Logged in as: </span> <strong id="loggedRole">Guest</strong>
+        </div>
+      </div>
+
+      <!-- stats -->
+      <div class="stats" id="statsRow">
+        <div class="stat-card">
+          <div class="small">Engagement Rate</div>
+          <div class="num" id="engagementNum">87%</div>
+        </div>
+        <div class="stat-card">
+          <div class="small">XP Points</div>
+          <div class="num" id="xpNum">1,247</div>
+        </div>
+        <div class="stat-card">
+          <div class="small">Achievements</div>
+          <div class="num" id="achNum">23</div>
+        </div>
+        <div class="stat-card">
+          <div class="small">Lessons Completed</div>
+          <div class="num" id="lessonsNum">156</div>
+        </div>
+      </div>
+
+      <!-- avatars -->
+      <div style="margin-top:16px">
+        <div style="font-weight:700; margin-bottom:8px">Select Student (Demo):</div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap">
+          <div class="avatar mayank" style="background:linear-gradient(45deg,#FF6B6B,#4ECDC4);cursor:pointer" onclick="selectStudent('Mayank')">M</div>
+          <div class="avatar yash" style="background:linear-gradient(45deg,#FFA07A,#FFE4B5);cursor:pointer" onclick="selectStudent('Yash')">Y</div>
+          <div class="avatar shivam" style="background:linear-gradient(45deg,#45B7D1,#96CEB4);cursor:pointer" onclick="selectStudent('Shivam')">S</div>
+          <div class="avatar anuraj" style="background:linear-gradient(45deg,#DDA0DD,#98D8C8);cursor:pointer" onclick="selectStudent('Anuraj')">A</div>
+          <div class="avatar akriti" style="background:linear-gradient(45deg,#8E44AD,#FF7F50);cursor:pointer" onclick="selectStudent('Akriti')">K</div>
+          <div class="avatar divya" style="background:linear-gradient(45deg,#2ECC71,#3498DB);cursor:pointer" onclick="selectStudent('Divyakshi')">D</div>
+        </div>
+      </div>
+
+      <!-- games -->
+      <div class="grid" id="gameGrid">
+        <div class="game-card" onclick="playGame('math')">
+          <div class="badge">🏆</div>
+          <div class="game-title">🔢 Math Adventures</div>
+          <div class="game-desc">Solve puzzles and explore number patterns</div>
+          <div class="progress-bar"><div class="progress-fill" id="pf_math" style="width:75%"></div></div>
+          <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center">
+            <div class="small">Medium</div>
+            <div class="small">+250 XP</div>
+          </div>
+        </div>
+
+        <div class="game-card" onclick="playGame('physics')">
+          <div class="badge">⭐</div>
+          <div class="game-title">⚛️ Physics Lab</div>
+          <div class="game-desc">Virtual experiments & concepts</div>
+          <div class="progress-bar"><div class="progress-fill" id="pf_physics" style="width:60%"></div></div>
+          <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center">
+            <div class="small">Hard</div>
+            <div class="small">+350 XP</div>
+          </div>
+        </div>
+
+        <div class="game-card" onclick="playGame('chemistry')">
+          <div class="badge">🧪</div>
+          <div class="game-title">🧬 Chemistry Quest</div>
+          <div class="game-desc">Safe virtual experiments and reaction puzzles</div>
+          <div class="progress-bar"><div class="progress-fill" id="pf_chemistry" style="width:45%"></div></div>
+          <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center">
+            <div class="small">Medium</div>
+            <div class="small">+300 XP</div>
+          </div>
+        </div>
+
+        <div class="game-card" onclick="playGame('biology')">
+          <div class="badge">🌱</div>
+          <div class="game-title">🔬 Life Sciences</div>
+          <div class="game-desc">Explore ecosystems and living organisms</div>
+          <div class="progress-bar"><div class="progress-fill" id="pf_biology" style="width:90%"></div></div>
+          <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center">
+            <div class="small">Easy</div>
+            <div class="small">+200 XP</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="leaderboard" id="leaderboard">
+        <h3>🏆 Class Leaderboard</h3>
+        <div id="lbList"></div>
+      </div>
+
+      <!-- teacher analytics button -->
+      <div style="margin-top:12px; display:flex; justify-content:flex-end">
+        <button class="btn secondary" onclick="showTeacherModal()">Show Teacher Dashboard</button>
+      </div>
+
+    </div>
+
+    <footer>
+      <div class="team">
+        <strong>IT Squad</strong> — Shivam Anand, Yash Gupta, Raaghav Shukla, Guruvansh Rhode
+      </div>
+      <div class="credits">
+        <span id="syncStatus">Offline</span> • Prototype
+      </div>
+    </footer>
+  </div>
+
+  <!-- Login Modal (prototype) -->
+  <div id="loginModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <h2>Login (Prototype)</h2>
+      <div>
+        <label class="small">Name</label>
+        <input id="loginName" class="input" placeholder="Enter name (e.g., Mayank)">
+      </div>
+      <div style="margin-top:8px">
+        <label class="small">Role</label>
+        <div class="role-btns">
+          <button class="btn" onclick="doLogin('student')">Login as Student</button>
+          <button class="btn secondary" onclick="doLogin('teacher')">Login as Teacher</button>
+        </div>
+      </div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn secondary" onclick="closeLogin()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Teacher Modal -->
+  <div id="teacherModal" class="modal-backdrop hidden">
+    <div class="modal" style="width:720px; max-width:92%">
+      <h2>Teacher Analytics Dashboard</h2>
+      <div style="display:flex; gap:12px; margin-top:8px">
+        <div style="flex:1; padding:10px; background:#fafafa; border-radius:8px">
+          <h4>Class Metrics</h4>
+          <ul>
+            <li><strong>Average Engagement:</strong> <span id="t_eng">87%</span></li>
+            <li><strong>Completion Rate:</strong> <span id="t_comp">73%</span></li>
+            <li><strong>Most Popular Subject:</strong> Biology</li>
+            <li><strong>Offline Usage:</strong> <span id="t_off">45%</span></li>
+          </ul>
+        </div>
+        <div style="flex:1; padding:10px; background:#fafafa; border-radius:8px">
+          <h4>Student Progress (sample)</h4>
+          <div id="t_students"></div>
+        </div>
+      </div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn" onclick="syncNow()">Sync Now</button>
+        <button class="btn secondary" onclick="closeTeacherModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- audio for success -->
+  <audio id="levelSound">
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=" type="audio/wav">
+  </audio>
+
+<script>
+/*
+  STEM Quest - Enhanced Prototype (single-file)
+  Features included:
+  - Student/Teacher login (localStorage prototype)
+  - Language toggle (English/Hindi)
+  - Web Speech API for TTS
+  - IndexedDB for offline progress storage (simple wrapper)
+  - Play game simulation adds XP & achievements, updates leaderboard
+  - Teacher dashboard shows aggregated info and can "sync"
+  - Team credits included
+*/
+
+/* ---------- Configuration & sample data ---------- */
+const LANGS = { en: { code: 'en-US', label: 'English' }, hi: { code: 'hi-IN', label: 'Hindi' } };
+let currentLang = 'en';
+let currentStudent = null; // name
+let role = localStorage.getItem('role') || 'guest';
+let loggedName = localStorage.getItem('name') || 'Guest';
+
+// sample students initial data (if DB empty)
+const SAMPLE_STUDENTS = [
+  { id:'Mayank', xp:2847, level:12, completed:12 },
+  { id:'Yash', xp:2634, level:11, completed:11 },
+  { id:'Shivam', xp:2421, level:10, completed:10 },
+  { id:'Anuraj', xp:2198, level:9, completed:9 }
+];
+
+/* ---------- UI helpers ---------- */
+function $(id){ return document.getElementById(id) }
+function show(el){ el.classList.remove('hidden') }
+function hide(el){ el.classList.add('hidden') }
+
+/* ---------- Login handling (prototype) ---------- */
+const loginModal = $('loginModal');
+$('openLoginBtn').addEventListener('click', ()=> { show(loginModal); $('loginName').focus(); });
+function closeLogin(){ hide(loginModal); }
+function doLogin(selectedRole){
+  const name = $('loginName').value.trim();
+  if(!name){ alert('Enter name'); return; }
+  role = selectedRole;
+  loggedName = name;
+  localStorage.setItem('role', role);
+  localStorage.setItem('name', name);
+  updateLoggedUI();
+  closeLogin();
+}
+
+/* ---------- Language & TTS ---------- */
+$('languageToggle').addEventListener('click', ()=>{
+  currentLang = currentLang === 'en' ? 'hi' : 'en';
+  $('languageToggle').innerText = `Language: ${LANGS[currentLang].label}`;
+});
+$('speakBtn').addEventListener('click', ()=> {
+  speakText(getLocalized('welcome_sample'));
+});
+function getLocalized(key){
+  // minimal i18n map
+  const dict = {
+    welcome_sample: {
+      en: 'Welcome to STEM Quest. Select a subject and start learning!',
+      hi: 'STEM Quest में आपका स्वागत है। किसी विषय को चुनकर सीखना शुरू करें।'
+    },
+    play_confirm: { en: 'Starting the game', hi: 'खेल शुरू हो रहा है' },
+    level_up: { en: 'Level Up!', hi: 'स्तर बढ़ गया!' }
+  };
+  return (dict[key] && dict[key][currentLang]) || key;
+}
+function speakText(text, langCode){
+  try {
+    const msg = new SpeechSynthesisUtterance(text);
+    msg.lang = LANGS[currentLang].code || 'en-US';
+    // optional: pick a voice that matches language
+    const voices = speechSynthesis.getVoices();
+    const voice = voices.find(v => v.lang && v.lang.startsWith(msg.lang.split('-')[0]));
+    if(voice) msg.voice = voice;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(msg);
+  } catch(e){
+    console.warn('TTS not supported', e);
+  }
+}
+
+/* ---------- IndexedDB wrapper (simple) ---------- */
+const DB_NAME = 'STEMQuestDB';
+const DB_STORE = 'progress';
+let dbPromise = null;
+
+function openDB(){
+  return new Promise((resolve, reject) => {
+    if(dbPromise) return resolve(dbPromise);
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = function(e){
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains(DB_STORE)){
+        const store = db.createObjectStore(DB_STORE, { keyPath: 'id' });
+        store.createIndex('by-xp', 'xp');
+      }
+    };
+    req.onsuccess = (e) => {
+      dbPromise = e.target.result;
+      resolve(dbPromise);
+    };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function getAllStudents(){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readonly');
+    const store = tx.objectStore(DB_STORE);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function getStudent(id){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readonly');
+    const store = tx.objectStore(DB_STORE);
+    const req = store.get(id);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveStudent(obj){
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    const store = tx.objectStore(DB_STORE);
+    const req = store.put(obj);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* initialize DB with sample students if empty */
+async function seedDBIfEmpty(){
+  const list = await getAllStudents();
+  if(list && list.length>0) return;
+  for(const s of SAMPLE_STUDENTS){
+    await saveStudent({ id:s.id, xp:s.xp, level:s.level, completed:s.completed });
+  }
+}
+
+/* ---------- Leaderboard rendering ---------- */
+async function renderLeaderboard(){
+  const list = await getAllStudents();
+  // sort by xp desc
+  list.sort((a,b)=> (b.xp||0)-(a.xp||0));
+  const container = $('lbList');
+  container.innerHTML = '';
+  for(let i=0;i<list.length;i++){
+    const s = list[i];
+    const div = document.createElement('div');
+    div.className = 'lb-item';
+    div.innerHTML = `
+      <div class="rank">${i+1}</div>
+      <div style="display:flex;align-items:center;gap:10px;flex:1">
+        <div class="avatar" style="background:linear-gradient(45deg,#${hashColor(s.id)}); width:46px;height:46px;border-radius:50%;font-weight:700">${s.id.charAt(0)}</div>
+        <div>
+          <div style="font-weight:700">${s.id}</div>
+          <div class="small">Level ${s.level || 1} • ${s.completed || 0} lessons</div>
+        </div>
+      </div>
+      <div style="font-weight:700;color:#4CAF50">${s.xp || 0} XP</div>
+    `;
+    container.appendChild(div);
+  }
+
+  // update global stats (simple aggregation)
+  const totalXP = list.reduce((a,b)=>a+(b.xp||0),0);
+  const totalAch = list.length * 5; // demo
+  $('xpNum').innerText = totalXP;
+  $('achNum').innerText = totalAch;
+  $('lessonsNum').innerText = list.reduce((a,b)=>a+(b.completed||0),0);
+}
+
+/* utility: create color from string */
+function hashColor(str){
+  let h=0; for(let i=0;i<str.length;i++){ h = str.charCodeAt(i) + ((h<<5)-h); }
+  const c = (h & 0x00FFFFFF).toString(16).toUpperCase();
+  return '000000'.substring(0,6-c.length) + c;
+}
+
+/* ---------- Game play simulation ---------- */
+async function playGame(gameKey){
+  if(!currentStudent){ alert('Please select a student first (click an avatar)'); return; }
+  speakText(getLocalized('play_confirm'));
+  // simulate a play session: award XP
+  const gameRewards = { math:250, physics:350, chemistry:300, biology:200 };
+  const xpGain = gameRewards[gameKey] || 100;
+  const stud = (await getStudent(currentStudent)) || { id: currentStudent, xp:0, level:1, completed:0 };
+  stud.xp = (stud.xp || 0) + xpGain;
+  stud.completed = (stud.completed || 0) + 1;
+  // simple level calc: each 1000 xp = 1 level
+  stud.level = Math.floor(stud.xp / 1000) + 1;
+  await saveStudent(stud);
+  // animate progress bar quick
+  const pf = $('pf_'+gameKey);
+  if(pf){
+    pf.style.width = Math.min(100, parseInt(pf.style.width || 0) + Math.floor(Math.random()*10)+5) + '%';
+  }
+  // show notification and levelup
+  showNotification(`${currentStudent} gained +${xpGain} XP`);
+  if(stud.xp % 1000 < xpGain){ // crossed level threshold
+    // play sound & visual
+    $('levelSound').play().catch(()=>{});
+    showNotification(`${getLocalized('level_up')} ${stud.level}`, true);
+  }
+  // refresh leaderboard
+  await renderLeaderboard();
+}
+
+/* ---------- Student selection ---------- */
+function selectStudent(name){
+  currentStudent = name;
+  showNotification(`Selected: ${name}`);
+  // ensure entry exists
+  getStudent(name).then(s=>{
+    if(!s){ saveStudent({ id:name, xp:0, level:1, completed:0 }); renderLeaderboard(); }
+  });
+}
+
+/* ---------- Notifications ---------- */
+function showNotification(msg, sticky=false){
+  const note = document.createElement('div');
+  note.className = 'notification';
+  note.style.position = 'fixed';
+  note.style.right = '20px';
+  note.style.top = '20px';
+  note.style.background = '#4CAF50';
+  note.style.color = '#fff';
+  note.style.padding = '10px 14px';
+  note.style.borderRadius = '10px';
+  note.style.boxShadow = '0 8px 30px rgba(0,0,0,0.12)';
+  note.innerText = msg;
+  document.body.appendChild(note);
+  setTimeout(()=>{ note.style.opacity = '0'; note.remove(); }, sticky ? 2800 : 2200);
+}
+
+/* ---------- Teacher dashboard modal ---------- */
+const teacherModal = $('teacherModal');
+function showTeacherModal(){
+  if(role !== 'teacher'){ alert('Please login as teacher to view dashboard'); return; }
+  populateTeacherModal();
+  show(teacherModal);
+}
+function closeTeacherModal(){ hide(teacherModal); }
+
+async function populateTeacherModal(){
+  const list = await getAllStudents();
+  const tstudents = $('t_students');
+  tstudents.innerHTML = '';
+  for(const s of list){
+    const div = document.createElement('div');
+    div.style.padding = '6px 0';
+    div.innerHTML = `<strong>${s.id}</strong> — XP: ${s.xp || 0}, Level: ${s.level || 1}, Lessons: ${s.completed || 0}`;
+    tstudents.appendChild(div);
+  }
+  // update quick metrics
+  $('t_eng').innerText = '87%';
+  $('t_comp').innerText = '73%';
+  $('t_off').innerText = '45%';
+}
+
+/* ---------- Sync logic (simulation) ---------- */
+window.addEventListener('online', ()=> {
+  $('connStatus').innerText = '📶 Connected';
+  $('offlineIndicator').innerText = 'ONLINE';
+  $('offlineIndicator').style.background = '#4CAF50';
+  $('syncStatus').innerText = 'Online - Syncing...';
+  setTimeout(()=>{ syncNow(); }, 1000);
+});
+window.addEventListener('offline', ()=> {
+  $('connStatus').innerText = '📵 Offline';
+  $('offlineIndicator').innerText = 'OFFLINE MODE';
+  $('offlineIndicator').style.background = '#FF9800';
+  $('syncStatus').innerText = 'Offline';
+});
+
+async function syncNow(){
+  // simulation: read all local students and "push" to server (here we simply update teacher view)
+  const list = await getAllStudents();
+  // pretend to send to server - here we just update UI and show message
+  $('syncStatus').innerText = 'Synced ' + list.length + ' students';
+  showNotification('Data synced to teacher dashboard', true);
+  await renderLeaderboard();
+}
+
+/* ---------- initial bootstrap ---------- */
+async function init(){
+  // show logged role
+  updateLoggedUI();
+  await seedDBIfEmpty();
+  await renderLeaderboard();
+  // reflect online status
+  if(!navigator.onLine){ window.dispatchEvent(new Event('offline')); } else { window.dispatchEvent(new Event('online')); }
+}
+function updateLoggedUI(){
+  $('loggedRole').innerText = `${loggedName} (${role})`;
+}
+init();
+
+/* ---------- helper: close modals when clicking outside ---------- */
+document.addEventListener('click', (e)=>{
+  if(e.target.classList.contains('modal-backdrop')) hide(e.target);
+});
+
+/* ---------- exports for buttons ---------- */
+function closeLogin(){ hide(loginModal); }
+function closeTeacherModal(){ hide(teacherModal); }
+
+/* ---------- quick test functions ---------- */
+window.syncNow = syncNow;
+window.playGame = playGame;
+window.selectStudent = selectStudent;
+window.showTeacherModal = showTeacherModal;
+window.doLogin = doLogin;
+window.closeLogin = closeLogin;
+</script>
+
+</body>
+</html>
